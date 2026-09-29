@@ -10,7 +10,7 @@ import { createLetterSet, lettersInWord, type GameContent } from "@/content/word
 import { resolveLevel } from "@/content/levels";
 import { RichText, useI18n } from "@/i18n/translations";
 import { storeTutorialSeen, type SessionConfig } from "@/session/use-game-session";
-import { FINAL_REVEAL_MS, MAX_HINTS, MAX_WRONG } from "@/game-config";
+import { FINAL_REVEAL_MS, MAX_WRONG } from "@/game-config";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "animals": { bg: "bg-amber-200 dark:bg-amber-700", text: "text-amber-900 dark:text-amber-100" },
@@ -181,11 +181,8 @@ export default function Game({ content, config, onRestart }: GameProps) {
   );
 
   const handleHint = useCallback(() => {
+    // No hint limit: each hint reveals one more letter, all the way to the full solution.
     if (inputDisabled) return;
-    if (hintsUsed >= MAX_HINTS) {
-      showSnackbar(t("hint.none_left"), "info");
-      return;
-    }
 
     const unguessed = Array.from(solutionLetters).filter((l) => !guessedLetters.has(l));
     if (unguessed.length === 0) return;
@@ -194,9 +191,8 @@ export default function Game({ content, config, onRestart }: GameProps) {
     const newGuessed = new Set(guessedLetters);
     newGuessed.add(randomLetter);
     setGuessedLetters(newGuessed);
-    const newHintsUsed = hintsUsed + 1;
-    setHintsUsed(newHintsUsed);
-    showSnackbar(t(newHintsUsed >= MAX_HINTS ? "hint.revealed_last" : "hint.revealed", { letter: randomLetter }), "info");
+    setHintsUsed(hintsUsed + 1);
+    showSnackbar(t("hint.revealed", { letter: randomLetter }), "info");
   }, [inputDisabled, hintsUsed, solutionLetters, guessedLetters, showSnackbar, t]);
 
   // Report each round once, when it ends (won or lost both count as completed, BR-02).
@@ -329,9 +325,6 @@ export default function Game({ content, config, onRestart }: GameProps) {
                 aria-label={t("hud.hint")}
               >
                 <Lightbulb className="w-4 h-4" />
-                <span className="absolute -bottom-1 -left-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {MAX_HINTS - hintsUsed}
-                </span>
               </Button>
               <Button
                 size="icon"

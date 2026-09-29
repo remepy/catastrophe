@@ -18,8 +18,6 @@ export const REQUIRED_KEYS = [
   "feedback.correct",
   "feedback.wrong",
   "hint.revealed",
-  "hint.revealed_last",
-  "hint.none_left",
   "round.won",
   "round.lost",
   "round.next",

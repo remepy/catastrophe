@@ -18,8 +18,6 @@
     "feedback.correct": "That's right!",
     "feedback.wrong": "Not quite. Try another letter.",
     "hint.revealed": "The hint revealed the letter \"{letter}\"",
-    "hint.revealed_last": "The hint revealed the letter \"{letter}\". No hints left.",
-    "hint.none_left": "No hints left",
     "round.won": "🎉 Well done!",
     "round.lost": "💔 Not this time",
     "round.next": "Next round",

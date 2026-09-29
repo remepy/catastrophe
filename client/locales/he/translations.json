@@ -18,8 +18,6 @@
     "feedback.correct": "ניחוש נכון!",
     "feedback.wrong": "ניחוש שגוי, אפשר לנסות שוב",
     "hint.revealed": "הרמז חשף את האות \"{letter}\"",
-    "hint.revealed_last": "הרמז חשף את האות \"{letter}\" - נגמרו הרמזים",
-    "hint.none_left": "נגמרו הרמזים",
     "round.won": "🎉 כל הכבוד!",
     "round.lost": "💔 הפעם לא",
     "round.next": "לסיבוב הבא",

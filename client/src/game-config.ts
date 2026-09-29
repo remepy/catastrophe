@@ -20,4 +20,3 @@ export const FINAL_REVEAL_MS = 1500;
 export const TUTORIAL_STORAGE_KEY = "catastrophe.tutorialSeen";
 
 export const MAX_WRONG = 7;
-export const MAX_HINTS = 2;
