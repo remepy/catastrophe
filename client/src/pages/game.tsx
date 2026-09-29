@@ -157,6 +157,10 @@ export default function Game({ content, config, onRestart }: GameProps) {
   }, []);
 
   // ---- Round logic ----
+  const givenLetter = useMemo(
+    () => startingRevealLetter(word, content, letterSet, STARTING_REVEAL_MIN_LETTERS),
+    [word, content, letterSet],
+  );
   const solutionLetters = useMemo(() => lettersInWord(word, content, letterSet), [word, content, letterSet]);
 
   const isWon = useMemo(() => {
@@ -408,6 +412,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
             guessedLetters={guessedLetters}
             revealed={roundState === "lost"}
             dir={dir}
+            givenLetter={givenLetter}
           />
         </div>
 

@@ -43,9 +43,9 @@ The build fails if the catalogue does not resolve in every language.
   and posts nothing further. The ✕ quit button posts `game_exit_requested`.
 - Starting letter: a word or phrase with 7 or more letter slots (spaces and punctuation don't
   count) starts with one letter shown: the middle slot of a single word, or the first slot of the
-  second word of a phrase. Every slot with that letter is shown, as with a correct guess. It is
-  not counted in `hintsUsed` or `wrongGuesses`, and it is fixed per level. Threshold:
-  `STARTING_REVEAL_MIN_LETTERS` in `client/src/game-config.ts`.
+  second word of a phrase. Every slot with that letter is shown on a plain tile (guessed and hinted
+  letters get the green highlight). It is not counted in `hintsUsed` or `wrongGuesses`, and it
+  is fixed per level. Threshold: `STARTING_REVEAL_MIN_LETTERS` in `client/src/game-config.ts`.
 - Support timer: after 90 s with no tap or key press during a round, the hint button flashes
   twice, and again after each further 90 s idle. It stops while paused, during the tutorial and
   on the round-end panel, and restarts from zero when play resumes. It is a colour change, so it
