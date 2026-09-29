@@ -41,6 +41,10 @@ The build fails if the catalogue does not resolve in every language.
   the page renders nothing; `message` is for logs only.
 - `pause` disables input and music (and holds the final 1.5 s reveal); `abort` stops everything
   and posts nothing further. The ✕ quit button posts `game_exit_requested`.
+- Support timer: after 90 s with no tap or key press during a round, the hint button flashes
+  twice, and again after each further 90 s idle. It stops while paused, during the tutorial and
+  on the round-end panel, and restarts from zero when play resumes. It is a colour change, so it
+  also shows with `reducedMotion`. Tuning: `HINT_NUDGE_*` in `client/src/game-config.ts`.
 - Standalone (no `window.CyanGameBridge`): 4 consecutive levels from a random start, posts nothing,
   "new game" continues with the next 4.
 

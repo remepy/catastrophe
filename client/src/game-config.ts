@@ -20,3 +20,9 @@ export const FINAL_REVEAL_MS = 1500;
 export const TUTORIAL_STORAGE_KEY = "catastrophe.tutorialSeen";
 
 export const MAX_WRONG = 7;
+
+/** Support timer: after this long with no interaction during a round, the hint button flashes. */
+export const HINT_NUDGE_IDLE_MS = 90_000;
+/** How many times the hint button flashes per nudge, and the on/off step length. */
+export const HINT_NUDGE_FLASHES = 2;
+export const HINT_NUDGE_STEP_MS = 400;

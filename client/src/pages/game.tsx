@@ -10,7 +10,7 @@ import { createLetterSet, lettersInWord, type GameContent } from "@/content/word
 import { resolveLevel } from "@/content/levels";
 import { RichText, useI18n } from "@/i18n/translations";
 import { storeTutorialSeen, type SessionConfig } from "@/session/use-game-session";
-import { FINAL_REVEAL_MS, MAX_WRONG } from "@/game-config";
+import { FINAL_REVEAL_MS, HINT_NUDGE_FLASHES, HINT_NUDGE_IDLE_MS, HINT_NUDGE_STEP_MS, MAX_WRONG } from "@/game-config";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "animals": { bg: "bg-amber-200 dark:bg-amber-700", text: "text-amber-900 dark:text-amber-100" },
@@ -156,6 +156,37 @@ export default function Game({ content, config, onRestart }: GameProps) {
   }, [isWon, roundState]);
 
   const inputDisabled = roundState !== "playing" || paused || stopped !== null || showInstructions;
+
+  // ---- Support timer: flash the hint button after a stretch of no interaction ----
+  // Any tap or key press restarts the count. The timer only runs while a round is playable, so it
+  // stops during pause, the tutorial, the round-end panel and after abort, and starts again from
+  // zero when play resumes. After a nudge the count restarts, so it repeats every idle period.
+  const [idleEpoch, setIdleEpoch] = useState(0);
+  const [hintHighlighted, setHintHighlighted] = useState(false);
+
+  useEffect(() => {
+    const onInteraction = () => setIdleEpoch((n) => n + 1);
+    const events = ["pointerdown", "keydown"] as const;
+    events.forEach((e) => document.addEventListener(e, onInteraction, { capture: true }));
+    return () => events.forEach((e) => document.removeEventListener(e, onInteraction, { capture: true }));
+  }, []);
+
+  useEffect(() => {
+    setHintHighlighted(false);
+    if (inputDisabled) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(
+      setTimeout(() => {
+        // Driven by state rather than a CSS animation, so it still shows when reduced motion is on:
+        // it is a colour change, not movement.
+        for (let i = 0; i < HINT_NUDGE_FLASHES * 2; i++) {
+          timers.push(setTimeout(() => setHintHighlighted(i % 2 === 0), i * HINT_NUDGE_STEP_MS));
+        }
+        timers.push(setTimeout(() => setIdleEpoch((n) => n + 1), HINT_NUDGE_FLASHES * 2 * HINT_NUDGE_STEP_MS));
+      }, HINT_NUDGE_IDLE_MS),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [idleEpoch, inputDisabled, roundIndex]);
 
   const handleGuess = useCallback(
     (letter: string) => {
@@ -320,8 +351,11 @@ export default function Game({ content, config, onRestart }: GameProps) {
                 variant="outline"
                 onClick={handleHint}
                 disabled={inputDisabled}
-                className="min-w-[2.75rem] min-h-[2.75rem] text-sm font-bold border-2 rounded-full bg-transparent shadow-none"
+                className={`min-w-[2.75rem] min-h-[2.75rem] text-sm font-bold border-2 rounded-full shadow-none ${
+                  hintHighlighted ? "bg-primary text-primary-foreground border-primary ring-4 ring-primary/40" : "bg-transparent"
+                }`}
                 data-testid="button-hint"
+                data-highlighted={hintHighlighted ? "true" : undefined}
                 aria-label={t("hud.hint")}
               >
                 <Lightbulb className="w-4 h-4" />
