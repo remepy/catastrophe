@@ -6,11 +6,18 @@ import { WordDisplay } from "@/components/word-display";
 import { Lightbulb, Volume2, VolumeX, X } from "lucide-react";
 import backgroundMusic from "@/assets/music/background.mp3";
 import { isAborted, isPaused, post, subscribe } from "@/bridge/cyan-bridge";
-import { createLetterSet, lettersInWord, type GameContent } from "@/content/words";
+import { createLetterSet, lettersInWord, startingRevealLetter, type GameContent } from "@/content/words";
 import { resolveLevel } from "@/content/levels";
 import { RichText, useI18n } from "@/i18n/translations";
 import { storeTutorialSeen, type SessionConfig } from "@/session/use-game-session";
-import { FINAL_REVEAL_MS, HINT_NUDGE_FLASHES, HINT_NUDGE_IDLE_MS, HINT_NUDGE_STEP_MS, MAX_WRONG } from "@/game-config";
+import {
+  FINAL_REVEAL_MS,
+  HINT_NUDGE_FLASHES,
+  HINT_NUDGE_IDLE_MS,
+  HINT_NUDGE_STEP_MS,
+  MAX_WRONG,
+  STARTING_REVEAL_MIN_LETTERS,
+} from "@/game-config";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "animals": { bg: "bg-amber-200 dark:bg-amber-700", text: "text-amber-900 dark:text-amber-100" },
@@ -47,7 +54,15 @@ export default function Game({ content, config, onRestart }: GameProps) {
   const totalRounds = config.levelIds.length;
 
   const [roundIndex, setRoundIndex] = useState(0);
-  const [guessedLetters, setGuessedLetters] = useState<Set<string>>(new Set());
+  /** Letters guessed at the start of a round: one shown letter for long words, otherwise none. Not a hint. */
+  const startingLetters = useCallback(
+    (id: string) => {
+      const letter = startingRevealLetter(resolveLevel(id, content).word, content, letterSet, STARTING_REVEAL_MIN_LETTERS);
+      return new Set<string>(letter ? [letter] : []);
+    },
+    [content, letterSet],
+  );
+  const [guessedLetters, setGuessedLetters] = useState<Set<string>>(() => startingLetters(config.levelIds[0]));
   const [wrongGuesses, setWrongGuesses] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [roundState, setRoundState] = useState<RoundState>("playing");
@@ -268,12 +283,12 @@ export default function Game({ content, config, onRestart }: GameProps) {
     if (paused || stopped || isLastRound) return;
     const next = roundIndex + 1;
     setRoundIndex(next);
-    setGuessedLetters(new Set());
+    setGuessedLetters(startingLetters(config.levelIds[next]));
     setWrongGuesses(0);
     setHintsUsed(0);
     setSnackbar(null);
     setRoundState("playing");
-  }, [paused, stopped, isLastRound, roundIndex]);
+  }, [paused, stopped, isLastRound, roundIndex, startingLetters, config.levelIds]);
 
   const exitActivity = useCallback(() => {
     if (stopped) return;

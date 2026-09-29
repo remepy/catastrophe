@@ -50,3 +50,28 @@ export function lettersInWord(word: string, content: GameContent, letterSet: Set
   }
   return letters;
 }
+
+/**
+ * The letter shown at the start of a round, or null when the word is too short.
+ *
+ * Counts letter slots only (spaces and punctuation such as ' - . are not slots). From
+ * `minLetters` slots up, one letter is revealed:
+ * - a single word: the middle slot (for an even count, the one before the centre);
+ * - a phrase: the first slot of the second word.
+ * Revealing a letter shows every slot with that letter, as a correct guess would. The choice is
+ * fixed per word, so a level always starts the same way.
+ */
+export function startingRevealLetter(word: string, content: GameContent, letterSet: Set<string>, minLetters: number): string | null {
+  const isSlot = (char: string) => letterSet.has(normalizeLetter(char, content));
+  const words = word.split(" ").filter((w) => w.length > 0);
+  const slotCount = words.reduce((n, w) => n + Array.from(w).filter(isSlot).length, 0);
+  if (slotCount < minLetters) return null;
+
+  if (words.length > 1) {
+    const first = Array.from(words[1]).find(isSlot);
+    if (first) return normalizeLetter(first, content);
+  }
+  const slots = Array.from(words[0]).filter(isSlot);
+  if (slots.length === 0) return null;
+  return normalizeLetter(slots[Math.floor((slots.length - 1) / 2)], content);
+}

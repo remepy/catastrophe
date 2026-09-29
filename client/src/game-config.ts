@@ -26,3 +26,6 @@ export const HINT_NUDGE_IDLE_MS = 90_000;
 /** How many times the hint button flashes per nudge, and the on/off step length. */
 export const HINT_NUDGE_FLASHES = 2;
 export const HINT_NUDGE_STEP_MS = 400;
+
+/** Words and phrases with at least this many letter slots start the round with one letter shown. */
+export const STARTING_REVEAL_MIN_LETTERS = 7;
