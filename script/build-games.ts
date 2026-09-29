@@ -6,8 +6,11 @@
  *   dist/games/<GAME_ID>/<lang>/words.json          (serve no-cache)
  *   dist/games/<GAME_ID>/<lang>/assets/…            (content-hashed, immutable)
  *
- * Usage: npm run build:games            (every folder in client/locales)
- *        npm run build:games -- he      (selected languages)
+ * Usage: npm run build            (every folder in client/locales)
+ *        npm run build -- he      (selected languages)
+ *
+ * Before building it checks that the level catalogue still resolves in every words.json, and
+ * scans source and output for blinding (BR-10) and retired-name (BR-16) vocabulary.
  */
 import { build } from "vite";
 import { readdir, readFile, rm } from "fs/promises";
@@ -19,7 +22,11 @@ const localesDir = path.join(root, "client", "locales");
 const outRoot = path.join(root, "dist", "games", GAME_ID);
 
 // BR-10: arm-identifying vocabulary must not appear in any shipped file name or text.
-const BLINDING_TERMS = [/placebo/i, /sham/i, /control/i, /mock/i, /demo/i, /dummy/i, /פלסבו/, /פלצבו/, /טיפול דמה/];
+// BR-16: names this game was deliberately renamed away from must not appear either.
+const BLINDING_TERMS = [
+  /placebo/i, /sham/i, /control/i, /mock/i, /demo/i, /dummy/i, /פלסבו/, /פלצבו/, /טיפול דמה/,
+  /hang-?man/i, /איש תלוי/, /איש התלוי/,
+];
 const TEXT_EXTENSIONS = new Set([".html", ".js", ".css", ".json"]);
 /**
  * Whole words that bundled third-party code (React DOM) cannot avoid and that carry no arm meaning:
@@ -28,8 +35,11 @@ const TEXT_EXTENSIONS = new Set([".html", ".js", ".css", ".json"]);
  */
 const PLATFORM_WORDS_IN_JS = new Set(["controls", "Control", "controlled"]);
 /** First-party source and content, scanned strictly. Vendored UI primitives live in components/ui. */
-const SOURCE_DIRS = [path.join(root, "client", "src"), path.join(root, "client", "locales")];
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".css", ".json", ".html"]);
+const SOURCE_DIRS = [path.join(root, "client", "src"), path.join(root, "client", "locales"), path.join(root, "script")];
+const SOURCE_FILES = ["client/index.html", "README.md", "package.json", "vite.config.ts", "tailwind.config.ts"];
+const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".css", ".json", ".html", ".md", ".mjs"]);
+/** This file lists the terms themselves. */
+const SELF = path.relative(root, import.meta.filename);
 
 async function listFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -49,14 +59,16 @@ function wordAt(text: string, index: number, length: number): string {
 
 async function checkSource(): Promise<string[]> {
   const problems: string[] = [];
-  const files = [path.join(root, "client", "index.html")];
+  const files = SOURCE_FILES.map((f) => path.join(root, f));
   for (const dir of SOURCE_DIRS) files.push(...(await listFiles(dir)));
   for (const file of files) {
     const rel = path.relative(root, file);
     if (rel.includes(`components${path.sep}ui${path.sep}`)) continue;
     if (BLINDING_TERMS.some((term) => term.test(path.basename(file)))) problems.push(`${rel}: file name`);
+    if (rel === SELF) continue;
     if (!SOURCE_EXTENSIONS.has(path.extname(file))) continue;
-    const text = await readFile(file, "utf-8");
+    // The HTTP header name "Cache-Control" in the dev/QA servers is the only allowed exception.
+    const text = (await readFile(file, "utf-8")).replaceAll("Cache-Control", "");
     for (const term of BLINDING_TERMS) {
       if (term.test(text)) problems.push(`${rel}: contains ${term}`);
     }
@@ -91,6 +103,14 @@ async function main() {
   const langs = requested.length > 0 ? requested : available;
   const unknown = langs.filter((l) => !available.includes(l));
   if (unknown.length > 0) throw new Error(`No locale folder for: ${unknown.join(", ")}`);
+
+  // The catalogue must resolve in every language (index-aligned word lists).
+  const catalogue: [string, number][] = JSON.parse(await readFile(path.join(root, "client", "src", "content", "levels.json"), "utf-8"));
+  for (const lang of langs) {
+    const words = JSON.parse(await readFile(path.join(localesDir, lang, "words.json"), "utf-8"));
+    const broken = catalogue.filter(([c, i]) => !words.categories[c] || i >= words.categories[c].length);
+    if (broken.length > 0) throw new Error(`${lang}/words.json cannot resolve ${broken.length} catalogue levels (e.g. ${broken[0].join(" #")}); run npm run levels`);
+  }
 
   let failed = false;
   const sourceProblems = await checkSource();

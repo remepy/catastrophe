@@ -1,5 +1,8 @@
-/** Identifier reported to the Cyan app in `game_ready`. Also the folder name in the S3 layout. */
-export const GAME_ID = "Catastrophe";
+/**
+ * Bridge spec §4.1: one slug for the `gameId` in `game_ready`, the level-ID prefix, the S3 path
+ * segment (/games/catastrophe/{lang}/) and the activity id suffix (cyan_game_catastrophe).
+ */
+export const GAME_ID = "catastrophe";
 
 /** Cyan Game Bridge protocol version implemented by this build. */
 export const PROTOCOL_VERSION = 1;
@@ -8,7 +11,7 @@ export const PROTOCOL_VERSION = 1;
 export const SESSION_START_TIMEOUT_MS = 5000;
 
 /** Rounds played when the page is opened without the app (BR-09, QA in a desktop browser). */
-export const STANDALONE_ROUNDS = 3;
+export const STANDALONE_ROUNDS = 4;
 
 /** Pause after the final round so the solved or revealed word stays visible before `game_finished`. */
 export const FINAL_REVEAL_MS = 1500;

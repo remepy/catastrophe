@@ -7,6 +7,7 @@ import { Lightbulb, Volume2, VolumeX, X } from "lucide-react";
 import backgroundMusic from "@/assets/music/background.mp3";
 import { isAborted, isPaused, post, subscribe } from "@/bridge/cyan-bridge";
 import { createLetterSet, lettersInWord, type GameContent } from "@/content/words";
+import { resolveLevel } from "@/content/levels";
 import { RichText, useI18n } from "@/i18n/translations";
 import { storeTutorialSeen, type SessionConfig } from "@/session/use-game-session";
 import { FINAL_REVEAL_MS, MAX_HINTS, MAX_WRONG } from "@/game-config";
@@ -45,21 +46,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
   const letterSet = useMemo(() => createLetterSet(content), [content]);
   const totalRounds = config.levelIds.length;
 
-  const usedWords = useRef(new Set<string>());
-  const pickWord = useCallback(
-    (levelId: string) => {
-      const words = content.categories[levelId];
-      const fresh = words.filter((w) => !usedWords.current.has(w));
-      const pool = fresh.length > 0 ? fresh : words;
-      const word = pool[Math.floor(Math.random() * pool.length)];
-      usedWords.current.add(word);
-      return word;
-    },
-    [content],
-  );
-
   const [roundIndex, setRoundIndex] = useState(0);
-  const [word, setWord] = useState(() => pickWord(config.levelIds[0]));
   const [guessedLetters, setGuessedLetters] = useState<Set<string>>(new Set());
   const [wrongGuesses, setWrongGuesses] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -73,6 +60,8 @@ export default function Game({ content, config, onRestart }: GameProps) {
   const [sessionDone, setSessionDone] = useState(false);
 
   const levelId = config.levelIds[roundIndex];
+  // Level IDs were validated against the catalogue in session_start; the word is fixed per ID.
+  const { category, word } = useMemo(() => resolveLevel(levelId, content), [levelId, content]);
   const isLastRound = roundIndex === totalRounds - 1;
 
   const totals = useRef({ wins: 0, rounds: 0, wrongGuesses: 0, hintsUsed: 0 });
@@ -252,13 +241,12 @@ export default function Game({ content, config, onRestart }: GameProps) {
     if (paused || stopped || isLastRound) return;
     const next = roundIndex + 1;
     setRoundIndex(next);
-    setWord(pickWord(config.levelIds[next]));
     setGuessedLetters(new Set());
     setWrongGuesses(0);
     setHintsUsed(0);
     setSnackbar(null);
     setRoundState("playing");
-  }, [paused, stopped, isLastRound, roundIndex, pickWord, config.levelIds]);
+  }, [paused, stopped, isLastRound, roundIndex]);
 
   const exitActivity = useCallback(() => {
     if (stopped) return;
@@ -276,7 +264,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
     storeTutorialSeen();
   }, []);
 
-  const categoryColor = CATEGORY_COLORS[levelId] ?? DEFAULT_CATEGORY_COLOR;
+  const categoryColor = CATEGORY_COLORS[category] ?? DEFAULT_CATEGORY_COLOR;
   const showRoundPanel = roundState !== "playing" && !isLastRound;
   const showFinishedPanel = sessionDone && config.standalone;
   const interactionLocked = paused || stopped !== null;
@@ -366,7 +354,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
         <div className="px-4 text-center whitespace-nowrap" style={{ paddingTop: "6px", paddingBottom: "8px" }} data-testid="text-category">
           <span className="text-base text-foreground">{t("hud.category")} </span>
           <span className={`inline-block px-3 py-1 rounded-md text-base font-bold ${categoryColor.bg} ${categoryColor.text}`}>
-            {t(`category.${levelId}`)}
+            {t(`category.${category}`)}
           </span>
         </div>
 

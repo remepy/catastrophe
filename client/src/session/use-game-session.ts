@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { hasHost, isAborted, post, postError, subscribe, type SessionStartData } from "@/bridge/cyan-bridge";
 import { loadContent, type GameContent } from "@/content/words";
+import { LEVEL_COUNT, consecutiveLevels, isKnownLevel, unresolvedLevels } from "@/content/levels";
 import { loadTranslations, type Translations } from "@/i18n/translations";
 import {
   GAME_ID,
@@ -40,18 +41,18 @@ export function storeTutorialSeen(): void {
   }
 }
 
-function pickStandaloneLevels(content: GameContent): string[] {
-  const ids = Object.keys(content.categories);
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-  return ids.slice(0, Math.min(STANDALONE_ROUNDS, ids.length));
+/** Standalone (BR-09): a random run of consecutive catalogue levels. "New game" continues from there. */
+let standaloneStart = Math.floor(Math.random() * LEVEL_COUNT);
+
+function nextStandaloneLevels(): string[] {
+  const ids = consecutiveLevels(standaloneStart, STANDALONE_ROUNDS);
+  standaloneStart = (standaloneStart + STANDALONE_ROUNDS) % LEVEL_COUNT;
+  return ids;
 }
 
-function standaloneConfig(content: GameContent): SessionConfig {
+function standaloneConfig(): SessionConfig {
   return {
-    levelIds: pickStandaloneLevels(content),
+    levelIds: nextStandaloneLevels(),
     reducedMotion: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
     tutorialSeen: readTutorialSeen(),
     standalone: true,
@@ -59,7 +60,7 @@ function standaloneConfig(content: GameContent): SessionConfig {
 }
 
 /** Validates session_start. Returns an error code, or null when valid. */
-function validateSessionStart(data: SessionStartData | undefined, translations: Translations, content: GameContent): string | null {
+function validateSessionStart(data: SessionStartData | undefined, translations: Translations): string | null {
   if (!data || typeof data !== "object") return "invalid_session";
   if (data.protocolVersion !== PROTOCOL_VERSION) return "unsupported_protocol";
   if (typeof data.sessionId !== "string" || typeof data.reducedMotion !== "boolean") return "invalid_session";
@@ -69,7 +70,7 @@ function validateSessionStart(data: SessionStartData | undefined, translations: 
   if (
     !Array.isArray(data.levelIds) ||
     data.levelIds.length === 0 ||
-    !data.levelIds.every((id) => typeof id === "string" && Object.prototype.hasOwnProperty.call(content.categories, id))
+    !data.levelIds.every((id) => typeof id === "string" && isKnownLevel(id))
   ) {
     return "invalid_level";
   }
@@ -125,6 +126,12 @@ export function useGameSession() {
         return;
       }
 
+      const unresolved = unresolvedLevels(content);
+      if (unresolved.length > 0) {
+        end("content_unavailable", `words.json cannot resolve ${unresolved.length} catalogue levels, first ${unresolved[0]}`);
+        return;
+      }
+
       const missingCategories = Object.keys(content.categories).filter((id) => !translations.keys[`category.${id}`]);
       if (missingCategories.length > 0) {
         end("translations_unavailable", `translations.json is missing category names: ${missingCategories.join(", ")}`);
@@ -137,7 +144,7 @@ export function useGameSession() {
       document.title = translations.keys["game.title"];
 
       if (!hasHost()) {
-        setState({ phase: "running", translations, content, config: standaloneConfig(content), runId: 0 });
+        setState({ phase: "running", translations, content, config: standaloneConfig(), runId: 0 });
         return;
       }
 
@@ -160,7 +167,7 @@ export function useGameSession() {
         sessionReceived = true;
         if (timeout) clearTimeout(timeout);
 
-        const errorCode = validateSessionStart(message.data, translations, content);
+        const errorCode = validateSessionStart(message.data, translations);
         if (errorCode) {
           end(errorCode, `session_start rejected: ${errorCode}`);
           return;
@@ -193,11 +200,11 @@ export function useGameSession() {
     return () => stop();
   }, []);
 
-  /** Standalone only: start a fresh session with new random categories. */
+  /** Standalone only: start a fresh session with the next run of levels. */
   const restartStandalone = useCallback(() => {
     setState((current) =>
       current.phase === "running" && current.config.standalone
-        ? { ...current, config: standaloneConfig(current.content), runId: current.runId + 1 }
+        ? { ...current, config: standaloneConfig(), runId: current.runId + 1 }
         : current,
     );
   }, []);

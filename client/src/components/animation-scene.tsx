@@ -1,11 +1,11 @@
-import step0 from "@/assets/images/step-0.png";
-import step1 from "@/assets/images/step-1.png";
-import step2 from "@/assets/images/step-2.png";
-import step3 from "@/assets/images/step-3.png";
-import step4 from "@/assets/images/step-4.png";
-import step5 from "@/assets/images/step-5.png";
-import step6 from "@/assets/images/step-6.png";
-import step7 from "@/assets/images/step-7.png";
+import step0 from "@/assets/images/step-0.webp";
+import step1 from "@/assets/images/step-1.webp";
+import step2 from "@/assets/images/step-2.webp";
+import step3 from "@/assets/images/step-3.webp";
+import step4 from "@/assets/images/step-4.webp";
+import step5 from "@/assets/images/step-5.webp";
+import step6 from "@/assets/images/step-6.webp";
+import step7 from "@/assets/images/step-7.webp";
 
 interface AnimationSceneProps {
   wrongGuesses: number;
