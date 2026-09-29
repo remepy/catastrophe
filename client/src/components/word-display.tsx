@@ -14,12 +14,14 @@ interface WordDisplayProps {
   guessedLetters: Set<string>;
   revealed: boolean;
   dir: "rtl" | "ltr";
-  /** Letter shown at the start of the round. Its slots render plain, unlike guessed or hinted ones. */
-  givenLetter?: string | null;
+  /** Slot shown at the start of the round (index into Array.from(word)). Renders plain, unlike guessed or hinted slots. */
+  givenIndex?: number | null;
 }
 
-export function WordDisplay({ word, content, letterSet, guessedLetters, revealed, dir, givenLetter }: WordDisplayProps) {
+export function WordDisplay({ word, content, letterSet, guessedLetters, revealed, dir, givenIndex }: WordDisplayProps) {
   const words = word.split(" ");
+  // Start index of each word within Array.from(word), to map a slot back to the whole phrase.
+  const wordOffsets = words.reduce<number[]>((acc, w, i) => [...acc, i === 0 ? 0 : acc[i - 1] + Array.from(words[i - 1]).length + 1], []);
   // Geresh/gershayim substitution only applies to right-to-left scripts.
   const displayPunctuation = (char: string) => (dir === "rtl" ? PUNCTUATION_DISPLAY[char] ?? char : char);
 
@@ -48,9 +50,9 @@ export function WordDisplay({ word, content, letterSet, guessedLetters, revealed
               );
             }
 
-            const isGiven = givenLetter != null && normalizedChar === givenLetter;
-            const isRevealed = revealed || guessedLetters.has(normalizedChar);
-            const isMissed = revealed && !guessedLetters.has(normalizedChar);
+            const isGiven = givenIndex != null && wordOffsets[wordIdx] + charIdx === givenIndex;
+            const isRevealed = isGiven || revealed || guessedLetters.has(normalizedChar);
+            const isMissed = revealed && !isGiven && !guessedLetters.has(normalizedChar);
             // Given slots keep the empty-tile look: only the letter itself shows.
             const isHighlighted = isRevealed && !isGiven;
             return (

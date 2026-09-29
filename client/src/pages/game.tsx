@@ -6,7 +6,7 @@ import { WordDisplay } from "@/components/word-display";
 import { Lightbulb, Volume2, VolumeX, X } from "lucide-react";
 import backgroundMusic from "@/assets/music/background.mp3";
 import { isAborted, isPaused, post, subscribe } from "@/bridge/cyan-bridge";
-import { createLetterSet, lettersInWord, startingRevealLetter, type GameContent } from "@/content/words";
+import { createLetterSet, lettersInWord, requiredLetters, startingRevealIndex, type GameContent } from "@/content/words";
 import { resolveLevel } from "@/content/levels";
 import { RichText, useI18n } from "@/i18n/translations";
 import { storeTutorialSeen, type SessionConfig } from "@/session/use-game-session";
@@ -54,15 +54,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
   const totalRounds = config.levelIds.length;
 
   const [roundIndex, setRoundIndex] = useState(0);
-  /** Letters guessed at the start of a round: one shown letter for long words, otherwise none. Not a hint. */
-  const startingLetters = useCallback(
-    (id: string) => {
-      const letter = startingRevealLetter(resolveLevel(id, content).word, content, letterSet, STARTING_REVEAL_MIN_LETTERS);
-      return new Set<string>(letter ? [letter] : []);
-    },
-    [content, letterSet],
-  );
-  const [guessedLetters, setGuessedLetters] = useState<Set<string>>(() => startingLetters(config.levelIds[0]));
+  const [guessedLetters, setGuessedLetters] = useState<Set<string>>(new Set());
   const [wrongGuesses, setWrongGuesses] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [roundState, setRoundState] = useState<RoundState>("playing");
@@ -157,18 +149,23 @@ export default function Game({ content, config, onRestart }: GameProps) {
   }, []);
 
   // ---- Round logic ----
-  const givenLetter = useMemo(
-    () => startingRevealLetter(word, content, letterSet, STARTING_REVEAL_MIN_LETTERS),
+  // One slot shown at the start of long rounds. Its letter is not marked as guessed, so the key stays
+  // available and any other slots with that letter still have to be found.
+  const givenIndex = useMemo(
+    () => startingRevealIndex(word, content, letterSet, STARTING_REVEAL_MIN_LETTERS),
     [word, content, letterSet],
   );
+  /** Every letter in the word: decides whether a key press is a correct or a wrong guess. */
   const solutionLetters = useMemo(() => lettersInWord(word, content, letterSet), [word, content, letterSet]);
+  /** Letters still to find for the round to be won (excludes a letter shown only in the given slot). */
+  const neededLetters = useMemo(() => requiredLetters(word, content, letterSet, givenIndex), [word, content, letterSet, givenIndex]);
 
   const isWon = useMemo(() => {
-    for (const letter of Array.from(solutionLetters)) {
+    for (const letter of Array.from(neededLetters)) {
       if (!guessedLetters.has(letter)) return false;
     }
-    return solutionLetters.size > 0;
-  }, [solutionLetters, guessedLetters]);
+    return neededLetters.size > 0;
+  }, [neededLetters, guessedLetters]);
 
   useEffect(() => {
     if (isWon && roundState === "playing") setRoundState("won");
@@ -234,7 +231,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
     // No hint limit: each hint reveals one more letter, all the way to the full solution.
     if (inputDisabled) return;
 
-    const unguessed = Array.from(solutionLetters).filter((l) => !guessedLetters.has(l));
+    const unguessed = Array.from(neededLetters).filter((l) => !guessedLetters.has(l));
     if (unguessed.length === 0) return;
 
     const randomLetter = unguessed[Math.floor(Math.random() * unguessed.length)];
@@ -243,7 +240,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
     setGuessedLetters(newGuessed);
     setHintsUsed(hintsUsed + 1);
     showSnackbar(t("hint.revealed", { letter: randomLetter }), "info");
-  }, [inputDisabled, hintsUsed, solutionLetters, guessedLetters, showSnackbar, t]);
+  }, [inputDisabled, hintsUsed, neededLetters, guessedLetters, showSnackbar, t]);
 
   // Report each round once, when it ends (won or lost both count as completed, BR-02).
   useEffect(() => {
@@ -287,12 +284,12 @@ export default function Game({ content, config, onRestart }: GameProps) {
     if (paused || stopped || isLastRound) return;
     const next = roundIndex + 1;
     setRoundIndex(next);
-    setGuessedLetters(startingLetters(config.levelIds[next]));
+    setGuessedLetters(new Set());
     setWrongGuesses(0);
     setHintsUsed(0);
     setSnackbar(null);
     setRoundState("playing");
-  }, [paused, stopped, isLastRound, roundIndex, startingLetters, config.levelIds]);
+  }, [paused, stopped, isLastRound, roundIndex]);
 
   const exitActivity = useCallback(() => {
     if (stopped) return;
@@ -412,7 +409,7 @@ export default function Game({ content, config, onRestart }: GameProps) {
             guessedLetters={guessedLetters}
             revealed={roundState === "lost"}
             dir={dir}
-            givenLetter={givenLetter}
+            givenIndex={givenIndex}
           />
         </div>
 
