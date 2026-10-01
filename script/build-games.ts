@@ -19,7 +19,7 @@ import { GAME_ID } from "../client/src/game-config";
 
 const root = path.resolve(import.meta.dirname, "..");
 const localesDir = path.join(root, "client", "locales");
-const outRoot = path.join(root, "dist", "games", GAME_ID);
+const outRoot = path.join(root, "dist", GAME_ID);
 
 // BR-10: arm-identifying vocabulary must not appear in any shipped file name or text.
 // BR-16: names this game was deliberately renamed away from must not appear either.
